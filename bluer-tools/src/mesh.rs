@@ -5,9 +5,12 @@
 use bluer::mesh::{application::Application, *};
 use clap::Parser;
 use drogue_device::drivers::ble::mesh::model::{
+    Model, Message,
     firmware::FirmwareUpdateClient,
-    sensor::{PropertyId, SensorClient, SensorConfig, SensorData, SensorDescriptor},
+    generic::onoff::{GenericOnOffServer, GenericOnOffClient},
+    sensor::{PropertyId, SensorServer, SensorClient, SensorConfig, SensorData, SensorDescriptor},
 };
+use drogue_device::drivers::ble::mesh::composition::CompanyIdentifier;
 use std::{io, io::prelude::*};
 
 #[derive(Parser)]
@@ -44,7 +47,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         ],
     };
 
-    let _app = mesh.application(app).await?;
+    let sim = Application {
+        path: "/example".to_string(),
+        elements: vec![
+            Element {
+                models: vec![
+                    Box::new(FromDrogue::new(GenericOnOffServer)),
+                    Box::new(FromDrogue::new(SensorServer::<SensorModel, 1, 1>::new())),
+                    Box::new(FromDrogue::new(VendorModel)),
+                ]
+            },
+            Element {
+                models: vec![
+                    Box::new(FromDrogue::new(GenericOnOffClient)),
+                    Box::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new())),
+                ]
+            },
+        ],
+    };
+
+
+    let _app = mesh.application(sim).await?;
 
     mesh.print_dbus_objects().await?;
 
@@ -90,3 +113,41 @@ impl SensorData for Temperature {
         Ok(())
     }
 }
+
+const COMPANY_IDENTIFIER: CompanyIdentifier = CompanyIdentifier(0x05F1);
+const COMPANY_MODEL: ModelIdentifier = ModelIdentifier::Vendor(COMPANY_IDENTIFIER, 0x0001);
+
+
+#[derive(Clone, Debug)]
+pub struct VendorModel;
+
+impl Model for VendorModel {
+    const IDENTIFIER: ModelIdentifier = COMPANY_MODEL;
+    type Message<'m> = VendorMessage;
+
+    fn parse<'m>(
+        opcode: Opcode,
+        parameters: &'m [u8],
+    ) -> Result<Option<Self::Message<'m>>, ParseError> {
+        unimplemented!();
+    }
+}
+
+#[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum VendorMessage {
+}
+
+impl Message for VendorMessage {
+    fn opcode(&self) -> Opcode {
+        unimplemented!();
+    }
+
+    fn emit_parameters<const N: usize>(
+        &self,
+        xmit: &mut heapless::Vec<u8, N>,
+    ) -> Result<(), InsufficientBuffer> {
+        unimplemented!();
+    }
+}
+
