@@ -6,4 +6,4 @@ members = [
 
 [patch.crates-io]
 embassy = { git = "https://github.com/embassy-rs/embassy.git", rev = "de7dd59fa9553a1a6b75ff09238c9529277b95e7" }
-drogue-device = {git = "https://github.com/drogue-iot/drogue-device.git", rev = "6520d3d919fac71b99a276fff94285bff88fc7e4"}
+drogue-device = { git="https://github.com/dejanb/drogue-device.git", branch="onoff", features = ["ble", "std"] }
