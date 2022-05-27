@@ -1,7 +1,6 @@
 //! Implement Network bluetooth mesh interface
 
-use crate::{Error, ErrorKind, InternalErrorKind};
-use crate::{Result, SessionInner};
+use crate::{Error, ErrorKind, InternalErrorKind, Result, SessionInner};
 use std::sync::Arc;
 
 use dbus::{
@@ -9,10 +8,12 @@ use dbus::{
     Path,
 };
 
-use crate::mesh::{all_dbus_objects, SERVICE_NAME, PATH, TIMEOUT, application::{Application, RegisteredApplication}};
-use crate::mesh::application::ApplicationHandle;
+use crate::mesh::{
+    all_dbus_objects,
+    application::{Application, ApplicationHandle, RegisteredApplication},
+    ElementConfig, PATH, SERVICE_NAME, TIMEOUT,
+};
 use uuid::Uuid;
-use crate::mesh::ElementConfig;
 
 pub(crate) const INTERFACE: &str = "org.bluez.mesh.Network1";
 
@@ -24,9 +25,7 @@ pub struct Network {
 
 impl Network {
     pub(crate) async fn new(inner: Arc<SessionInner>) -> Result<Self> {
-        Ok(Self {
-            inner,
-        })
+        Ok(Self { inner })
     }
 
     fn proxy(&self) -> Proxy<'_, &SyncConnection> {
@@ -35,7 +34,6 @@ impl Network {
 
     /// Create mesh application
     pub async fn application(&self, app: Application) -> Result<ApplicationHandle> {
-
         let reg = RegisteredApplication::new(self.inner.clone(), app);
 
         reg.register(self.inner.clone()).await
@@ -43,7 +41,6 @@ impl Network {
 
     /// Temprorary debug method to print the state of mesh
     pub async fn print_dbus_objects(&self) -> Result<()> {
-
         // let proxy = Proxy::new("org.bluez.mesh", "/", TIMEOUT, &*self.inner.connection);
         // let (x,): (HashMap<dbus::Path<'static>, HashMap<String, PropMap>>,) = proxy.method_call("org.freedesktop.DBus.ObjectManager", "GetManagedObjects", ()).await.unwrap();
         // println!("om {:?}", x);
@@ -73,12 +70,10 @@ impl Network {
         let path_value =
             Path::new(path).map_err(|_| Error::new(ErrorKind::Internal(InternalErrorKind::InvalidValue)))?;
 
-
-        let (node, config): (Path, Vec<(u8, Vec<(u16, ElementConfig)>)>)
-            = self.call_method("Attach", (path_value, token_int)).await?;
+        let (node, config): (Path, Vec<(u8, Vec<(u16, ElementConfig)>)>) =
+            self.call_method("Attach", (path_value, token_int)).await?;
 
         log::info!("Attached app to {:?} with elements config {:?}", node, config);
-
 
         // TODO configure elements and get node object
         Ok(())
@@ -94,7 +89,7 @@ impl Network {
         let token_int = u64::from_str_radix(token, 16)
             .map_err(|_| Error::new(ErrorKind::Internal(InternalErrorKind::InvalidValue)))?;
 
-        self.call_method("Leave", (token_int, )).await
+        self.call_method("Leave", (token_int,)).await
     }
 
     dbus_interface!();

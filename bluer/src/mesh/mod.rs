@@ -5,7 +5,7 @@ pub mod network;
 mod types;
 pub use types::*;
 
-use crate::{Result, SessionInner};
+use crate::{method_call, Result, SessionInner};
 use dbus::{
     arg::{PropMap, RefArg, Variant},
     nonblock::{stdintf::org_freedesktop_dbus::ObjectManager, Proxy, SyncConnection},
@@ -56,8 +56,23 @@ impl RegisteredElement {
     dbus_interface!();
     dbus_default_interface!(ELEMENT_INTERFACE);
 
+    fn message_received(&self, source: u16, key_index: u16, destination: Variant<Box<dyn RefArg  + 'static>>, data: Vec<u8>) {
+        log::trace!("Message received for element {:?}: (source: {:?}, key_index: {:?}, dest: {:?}, data: {:?})", self.index, source, key_index, destination, data);
+    }
+
     pub(crate) fn register_interface(cr: &mut Crossroads) -> IfaceToken<Arc<Self>> {
         cr.register(ELEMENT_INTERFACE, |ib: &mut IfaceBuilder<Arc<Self>>| {
+            ib.method_with_cr_async(
+                "MessageReceived",
+                ("source", "key_index", "destination", "data"),
+                (),
+                |ctx, cr, (source, key_index, destination, data): (u16, u16, Variant<Box<dyn RefArg  + 'static>>, Vec<u8>)| {
+                    method_call(ctx, cr, move |reg: Arc<Self>| async move {
+                        reg.message_received(source, key_index, destination, data);
+                        Ok(())
+                    })
+                },
+            );
             cr_property!(ib, "Index", reg => {
                 Some(reg.index)
             });
