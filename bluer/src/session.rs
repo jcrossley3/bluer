@@ -35,9 +35,7 @@ use crate::{
     adv::Advertisement,
     agent::{Agent, AgentHandle, RegisteredAgent},
     all_dbus_objects, gatt,
-    mesh::network::Network,
-    mesh::application::RegisteredApplication,
-    mesh::RegisteredElement,
+    mesh::{application::RegisteredApplication, network::Network, RegisteredElement},
     parent_path, Adapter, Error, ErrorKind, InternalErrorKind, Result, SERVICE_NAME,
 };
 

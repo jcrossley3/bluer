@@ -4,31 +4,22 @@
 // use uuid::Uuid;
 use bluer::mesh::{application::Application, *};
 use clap::Parser;
-use drogue_device::drivers::ble::mesh::model::{
-    Model, Message,
-    firmware::FirmwareUpdateClient,
-    generic::onoff::{GenericOnOffServer, GenericOnOffClient},
-    sensor::{PropertyId, SensorServer, SensorClient, SensorConfig, SensorData, SensorDescriptor},
+use drogue_device::drivers::ble::mesh::{
+    composition::CompanyIdentifier,
+    model::{
+        firmware::FirmwareUpdateClient,
+        generic::onoff::{GenericOnOffClient, GenericOnOffServer},
+        sensor::{PropertyId, SensorClient, SensorConfig, SensorData, SensorDescriptor, SensorServer},
+        Message, Model,
+    },
 };
-use drogue_device::drivers::ble::mesh::composition::CompanyIdentifier;
-use std::{io, io::prelude::*};
+use futures::future;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 struct Args {
     #[clap(short, long)]
     token: String,
-}
-
-/// Temp function to examine the program
-fn pause() {
-    let mut stdin = io::stdin();
-    let mut stdout = io::stdout();
-
-    write!(stdout, "Press any key to continue...").unwrap();
-    stdout.flush().unwrap();
-
-    let _ = stdin.read(&mut [0u8]).unwrap();
 }
 
 #[tokio::main(flavor = "current_thread")]
@@ -39,7 +30,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mesh = session.mesh().await?;
 
-    let app = Application {
+    let _app = Application {
         path: "/example".to_string(),
         elements: vec![
             Element { models: vec![Box::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new()))] },
@@ -55,19 +46,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Box::new(FromDrogue::new(GenericOnOffServer)),
                     Box::new(FromDrogue::new(SensorServer::<SensorModel, 1, 1>::new())),
                     Box::new(FromDrogue::new(VendorModel)),
-                ]
+                ],
             },
             Element {
                 models: vec![
                     Box::new(FromDrogue::new(GenericOnOffClient)),
                     Box::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new())),
-                ]
+                ],
             },
         ],
     };
 
-
-    let _app = mesh.application(sim).await?;
+    let _registered = mesh.application(sim).await?;
 
     mesh.print_dbus_objects().await?;
 
@@ -79,7 +69,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //mesh.leave(token).await?;
 
-    pause();
+    future::pending::<()>().await;
 
     Ok(())
 }
@@ -117,7 +107,6 @@ impl SensorData for Temperature {
 const COMPANY_IDENTIFIER: CompanyIdentifier = CompanyIdentifier(0x05F1);
 const COMPANY_MODEL: ModelIdentifier = ModelIdentifier::Vendor(COMPANY_IDENTIFIER, 0x0001);
 
-
 #[derive(Clone, Debug)]
 pub struct VendorModel;
 
@@ -125,18 +114,14 @@ impl Model for VendorModel {
     const IDENTIFIER: ModelIdentifier = COMPANY_MODEL;
     type Message<'m> = VendorMessage;
 
-    fn parse<'m>(
-        opcode: Opcode,
-        parameters: &'m [u8],
-    ) -> Result<Option<Self::Message<'m>>, ParseError> {
+    fn parse<'m>(_opcode: Opcode, _parameters: &'m [u8]) -> Result<Option<Self::Message<'m>>, ParseError> {
         unimplemented!();
     }
 }
 
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum VendorMessage {
-}
+pub enum VendorMessage {}
 
 impl Message for VendorMessage {
     fn opcode(&self) -> Opcode {
@@ -144,10 +129,8 @@ impl Message for VendorMessage {
     }
 
     fn emit_parameters<const N: usize>(
-        &self,
-        xmit: &mut heapless::Vec<u8, N>,
+        &self, _xmit: &mut heapless::Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
         unimplemented!();
     }
 }
-

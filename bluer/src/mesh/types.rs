@@ -6,21 +6,30 @@ pub use drogue_device::drivers::ble::mesh::{
     InsufficientBuffer,
 };
 
+/// Bluetooth Mesh Message
 pub trait Message {
+    /// Returns opcode of the message
     fn opcode(&self) -> Opcode;
+    /// Emit message parameters
     fn emit_parameters(&self, xmit: &mut Vec<u8>);
 }
 
+/// Bluetooth Mesh Model
 pub trait Model: Sync + Send + Debug {
+    /// Returns model identifier
     fn identifier(&self) -> ModelIdentifier;
+    /// Returns whether model supports subscription
     fn supports_subscription(&self) -> bool;
+    /// Returns whether model supports publication
     fn supports_publication(&self) -> bool;
 
+    /// Parses message opcode and parameters
     fn parse<'m>(opcode: Opcode, parameters: &'m [u8]) -> Result<Option<Box<dyn Message + 'm>>, ParseError>
     where
         Self: Sized + 'm;
 }
 
+/// Bluetooth Mesh Model Message
 pub struct ModelMessage<M> {
     m: M,
 }
@@ -40,6 +49,7 @@ where
     }
 }
 
+/// Converting Drogue to local types
 #[derive(Debug)]
 pub struct FromDrogue<M>
 where
@@ -49,7 +59,8 @@ where
 }
 
 impl<M: Debug> FromDrogue<M> {
-    pub fn new(m: M) -> Self {
+    /// New model
+    pub fn new(_m: M) -> Self {
         Self { _m: core::marker::PhantomData }
     }
 }
