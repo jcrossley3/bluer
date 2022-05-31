@@ -14,6 +14,7 @@ use drogue_device::drivers::ble::mesh::{
     },
 };
 use futures::future;
+use drogue_device::drivers::ble::mesh::pdu::ParseError;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
