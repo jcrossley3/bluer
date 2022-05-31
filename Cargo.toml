@@ -6,8 +6,9 @@ members = [
 
 [patch.crates-io]
 embassy = { git = "https://github.com/embassy-rs/embassy.git", rev = "de7dd59fa9553a1a6b75ff09238c9529277b95e7" }
-drogue-device = { git="https://github.com/dejanb/drogue-device.git", branch="onoff", features = ["ble", "std"] }
+drogue-device = { git="https://github.com/dejanb/drogue-device.git", branch="bluer", features = ["ble", "std"] }
+#drogue-device = { path = "../drogue-device/device", features = ["ble", "std"] }
 
-# dbus = { path = "../../dbus-rs/dbus/", features = ["futures"], optional = true }
-# dbus-tokio = { path = "../../dbus-rs/dbus-tokio/", optional = true }
-# dbus-crossroads = { path = "../../dbus-rs/dbus-crossroads/", optional = true }
+# dbus = { path = "../dbus-rs/dbus/", features = ["futures"], optional = true }
+# dbus-tokio = { path = "../dbus-rs/dbus-tokio/", optional = true }
+# dbus-crossroads = { path = "../dbus-rs/dbus-crossroads/", optional = true }
