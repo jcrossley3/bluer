@@ -12,12 +12,15 @@ use dbus::{
     Path,
 };
 use dbus_crossroads::{Crossroads, IfaceBuilder, IfaceToken};
+use drogue_device::drivers::ble::mesh::{
+    address::{Address, UnicastAddress},
+    app::ApplicationKeyIdentifier,
+    pdu::{
+        access::{AccessMessage, AccessPayload},
+        ParseError,
+    },
+};
 use std::{collections::HashMap, sync::Arc, time::Duration};
-use drogue_device::drivers::ble::mesh::pdu::access::{AccessMessage, AccessPayload};
-use drogue_device::drivers::ble::mesh::pdu::ParseError;
-use drogue_device::drivers::ble::mesh::address::Address;
-use drogue_device::drivers::ble::mesh::app::ApplicationKeyIdentifier;
-use drogue_device::drivers::ble::mesh::address::UnicastAddress;
 
 pub(crate) const SERVICE_NAME: &str = "org.bluez.mesh";
 pub(crate) const PATH: &str = "/org/bluez/mesh";
@@ -61,8 +64,17 @@ impl RegisteredElement {
     dbus_interface!();
     dbus_default_interface!(ELEMENT_INTERFACE);
 
-    fn message_received(&self, source: u16, key_index: u16, destination: Variant<Box<dyn RefArg  + 'static>>, data: Vec<u8>) -> core::result::Result<(), ParseError> {
-        log::trace!("Message received for element {:?}: (source: {:?}, key_index: {:?}, dest: {:?}, data: {:?})", self.index, source, key_index, destination, data);
+    fn message_received(
+        &self, source: u16, key_index: u16, destination: Variant<Box<dyn RefArg + 'static>>, data: Vec<u8>,
+    ) -> core::result::Result<(), ParseError> {
+        log::trace!(
+            "Message received for element {:?}: (source: {:?}, key_index: {:?}, dest: {:?}, data: {:?})",
+            self.index,
+            source,
+            key_index,
+            destination,
+            data
+        );
 
         let key = ApplicationKeyIdentifier::from(u8::try_from(key_index).unwrap_or_default());
         let src: UnicastAddress = source.try_into()?;
@@ -83,7 +95,14 @@ impl RegisteredElement {
                 "MessageReceived",
                 ("source", "key_index", "destination", "data"),
                 (),
-                |ctx, cr, (source, key_index, destination, data): (u16, u16, Variant<Box<dyn RefArg  + 'static>>, Vec<u8>)| {
+                |ctx,
+                 cr,
+                 (source, key_index, destination, data): (
+                    u16,
+                    u16,
+                    Variant<Box<dyn RefArg + 'static>>,
+                    Vec<u8>,
+                )| {
                     method_call(ctx, cr, move |reg: Arc<Self>| async move {
                         reg.message_received(source, key_index, destination, data);
                         Ok(())

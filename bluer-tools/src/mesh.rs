@@ -12,9 +12,9 @@ use drogue_device::drivers::ble::mesh::{
         sensor::{PropertyId, SensorClient, SensorConfig, SensorData, SensorDescriptor, SensorServer},
         Message, Model,
     },
+    pdu::ParseError,
 };
 use futures::future;
-use drogue_device::drivers::ble::mesh::pdu::ParseError;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
