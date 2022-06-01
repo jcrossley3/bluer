@@ -76,16 +76,16 @@ impl RegisteredElement {
             data
         );
 
-        let key = ApplicationKeyIdentifier::from(u8::try_from(key_index).unwrap_or_default());
-        let src: UnicastAddress = source.try_into()?;
-        // TODO handle virtual addresses
-        let value = &destination.0;
-        let dest = Address::parse(dbus::arg::cast::<u16>(value).unwrap().to_be_bytes());
-        let payload = AccessPayload::parse(&data)?;
+        // let key = ApplicationKeyIdentifier::from(u8::try_from(key_index).unwrap_or_default());
+        // let src: UnicastAddress = source.try_into()?;
+        // // TODO handle virtual addresses
+        // let value = &destination.0;
+        // let dest = Address::parse(dbus::arg::cast::<u16>(value).unwrap().to_be_bytes());
+        // let payload = AccessPayload::parse(&data)?;
 
-        let message = AccessMessage::new(key, src, dest, payload);
+        // let message = AccessMessage::new(key, src, dest, payload);
 
-        log::info!("AccessMessage {:?}", message);
+        // log::info!("AccessMessage {:?}", message);
         Ok(())
     }
 
