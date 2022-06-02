@@ -1,7 +1,11 @@
 #![feature(generic_associated_types)]
-//! Join a BLE mesh
+//! Attach and send/receive BT Mesh messages
+//! Example receive
+//! [bluer/bluer-tools]$ RUST_LOG=TRACE cargo run --bin mesh -- --token e5571d4f4377707a
+//!
+//! Example send
+//! [burrboard/gateway]$ TOKEN=26ea5cc2f46fd59d app/device.py
 
-// use uuid::Uuid;
 use bluer::mesh::{application::Application, *};
 use clap::Parser;
 use drogue_device::drivers::ble::mesh::{
@@ -14,7 +18,8 @@ use drogue_device::drivers::ble::mesh::{
     },
     pdu::ParseError,
 };
-use futures::future;
+use futures::{pin_mut, StreamExt};
+use tokio::io::{AsyncBufReadExt, BufReader};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -31,11 +36,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mesh = session.mesh().await?;
 
+    let (element_control, element_handle) = element_control();
+
     let _app = Application {
         path: "/example".to_string(),
         elements: vec![
-            Element { models: vec![Box::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new()))] },
-            Element { models: vec![Box::new(FromDrogue::new(FirmwareUpdateClient))] },
+            Element {
+                models: vec![Box::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new()))],
+                control_handle: None,
+            },
+            Element { models: vec![Box::new(FromDrogue::new(FirmwareUpdateClient))], control_handle: None },
         ],
     };
 
@@ -48,29 +58,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Box::new(FromDrogue::new(SensorServer::<SensorModel, 1, 1>::new())),
                     Box::new(FromDrogue::new(VendorModel)),
                 ],
+                control_handle: Some(element_handle),
             },
             Element {
                 models: vec![
                     Box::new(FromDrogue::new(GenericOnOffClient)),
                     Box::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new())),
                 ],
+                control_handle: None,
             },
         ],
     };
 
     let _registered = mesh.application(sim).await?;
 
-    mesh.print_dbus_objects().await?;
-
-    //mesh.join("/example", Uuid::new_v4()).await?;
-
     mesh.attach("/example", &args.token).await?;
 
-    //mesh.cancel().await?;
+    println!("Echo service ready. Press enter to quit.");
+    let stdin = BufReader::new(tokio::io::stdin());
+    let mut lines = stdin.lines();
+    pin_mut!(element_control);
 
-    //mesh.leave(token).await?;
+    loop {
+        tokio::select! {
+            _ = lines.next_line() => break,
+            evt = element_control.next() => {
+                match evt {
+                    Some(msg) => {
+                        println!("Received element message {:?}", msg);
+                    },
+                    None => break,
+                }
+            },
+        }
+    }
 
-    future::pending::<()>().await;
+    // TODO unregister
 
     Ok(())
 }

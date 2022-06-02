@@ -1,8 +1,13 @@
 use core::fmt::Debug;
 use drogue_device::drivers::ble::mesh::model::Model as ConcreteModel;
 pub use drogue_device::drivers::ble::mesh::{
+    address::{Address, UnicastAddress},
     model::{Message as ConcreteMessage, ModelIdentifier},
-    pdu::{access::Opcode, ParseError},
+    app::ApplicationKeyIdentifier,
+    pdu::{
+        access::{AccessPayload, Opcode},
+        ParseError
+    },
     InsufficientBuffer,
 };
 
@@ -95,4 +100,17 @@ where
             Ok(None)
         }
     }
+}
+
+/// Element message received from dbus
+#[derive(Clone, Debug)]
+pub struct ElementMessage {
+    /// Application key
+    pub key: ApplicationKeyIdentifier,
+    /// Message source
+    pub src: UnicastAddress,
+    /// Message destination
+    pub dest: Address,
+    /// Message payload
+    pub payload: AccessPayload,
 }
