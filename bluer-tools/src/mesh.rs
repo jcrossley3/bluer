@@ -8,6 +8,7 @@
 
 use bluer::mesh::{application::Application, *};
 use clap::Parser;
+use colored_json::to_colored_json_auto;
 use drogue_device::drivers::ble::mesh::{
     composition::CompanyIdentifier,
     model::{
@@ -19,6 +20,7 @@ use drogue_device::drivers::ble::mesh::{
     pdu::ParseError,
 };
 use futures::{pin_mut, StreamExt};
+use serde_json::json;
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 #[derive(Parser)]
@@ -85,7 +87,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             evt = element_control.next() => {
                 match evt {
                     Some(msg) => {
-                        println!("Received element message {:?}", msg);
+                        println!("{}", to_colored_json_auto(&data_to_json(&msg.payload.parameters))?);
+
+                        //TODO use model to parse payload
+
+                        // let sensor_get: Option<SensorMessage<'_, SensorConfig, 1, 1>> = SensorServer::parse(msg.payload.opcode, &msg.payload.parameters).map_err(|_| std::fmt::Error)?;
+                        // match sensor_get {
+                        //     Some(value) => {
+                        //         match value {
+                        //             SensorMessage::Status(data) => {
+                        //                 println!("Received status");
+                        //             },
+                        //             _ => {
+                        //                 println!("Received message");
+                        //             }
+                        //         }
+                        //     }
+                        // }
                     },
                     None => break,
                 }
@@ -93,7 +111,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // TODO unregister
+    //TODO unregister
 
     Ok(())
 }
@@ -157,4 +175,42 @@ impl Message for VendorMessage {
     ) -> Result<(), InsufficientBuffer> {
         unimplemented!();
     }
+}
+
+fn data_to_json(data: &[u8]) -> serde_json::Value {
+    //assert_eq!(data.len(), 22);
+
+    let temp: f32 = (i16::from_le_bytes([data[0], data[1]]) as f32) / 100.0;
+    let brightness: u16 = u16::from_le_bytes([data[2], data[3]]);
+
+    let battery: u8 = data[4];
+
+    let counter_a = u16::from_le_bytes([data[5], data[6]]);
+    let counter_b = u16::from_le_bytes([data[7], data[8]]);
+
+    let accel: (f32, f32, f32) = (
+        f32::from_le_bytes([data[9], data[10], data[11], data[12]]),
+        f32::from_le_bytes([data[13], data[14], data[15], data[16]]),
+        f32::from_le_bytes([data[17], data[18], data[19], data[20]]),
+    );
+
+    let buttons_leds = data[21];
+    let button_a = (buttons_leds & 0x1) != 0;
+    let button_b = ((buttons_leds >> 1) & 0x1) != 0;
+
+    let red_led = ((buttons_leds >> 2) & 0x1) != 0;
+    let green_led = ((buttons_leds >> 3) & 0x1) != 0;
+    let blue_led = ((buttons_leds >> 4) & 0x1) != 0;
+    let yellow_led = ((buttons_leds >> 5) & 0x1) != 0;
+
+    json!({"temperature": {"value": temp}, "light": { "value": brightness },
+            "led_1": { "state": red_led },
+            "led_2": { "state": green_led },
+            "led_3": { "state": blue_led },
+            "led_4": { "state": yellow_led },
+            "accelerometer": {
+        "x": accel.0,
+        "y": accel.1,
+        "z": accel.2,
+            }, "device": { "battery": (battery as f32) / 100.0 }, "button_a": { "presses": counter_a, "state": button_a  } , "button_b": { "presses": counter_b, "state": button_b} })
 }
