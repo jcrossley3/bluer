@@ -107,7 +107,12 @@ impl RegisteredElement {
                         // TODO handle virtual addresses
                         let value = &destination.0;
                         let dest = Address::parse(dbus::arg::cast::<u16>(value).unwrap().to_be_bytes());
-                        let payload = AccessPayload::parse(&data).map_err(|_| ReqError::Failed)?;
+                        // TODO properly parse opcode and hanlde multiple octet cases
+                        //let payload = AccessPayload::parse(&data).map_err(|_| ReqError::Failed)?;
+                        let payload = AccessPayload {
+                            opcode: Opcode::OneOctet(data[0]),
+                            parameters:  heapless::Vec::from_slice(&data[1..]).map_err(|_|  ReqError::Failed)?,
+                        };
 
                         let msg = ElementMessage {
                             key, src, dest, payload
