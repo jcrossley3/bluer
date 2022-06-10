@@ -89,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[derive(Clone, Debug)]
 pub struct SensorModel;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Temperature(f32);
 
 impl SensorConfig for SensorModel {
@@ -99,9 +99,11 @@ impl SensorConfig for SensorModel {
 }
 
 impl SensorData for Temperature {
-    fn decode(id: PropertyId, params: &[u8]) -> Result<Self, ParseError> {
+
+    fn decode(&mut self, id: PropertyId, params: &[u8]) -> Result<(), ParseError> {
         if id.0 == 0x4F {
-            Ok(Temperature(params[0] as f32 / 2.0))
+            self.0 = params[0] as f32 / 2.0;
+            Ok(())
         } else {
             Err(ParseError::InvalidValue)
         }
