@@ -2,11 +2,11 @@ use core::fmt::Debug;
 use drogue_device::drivers::ble::mesh::model::Model as ConcreteModel;
 pub use drogue_device::drivers::ble::mesh::{
     address::{Address, UnicastAddress},
-    model::{Message as ConcreteMessage, ModelIdentifier},
     app::ApplicationKeyIdentifier,
+    model::{Message as ConcreteMessage, ModelIdentifier},
     pdu::{
         access::{AccessPayload, Opcode},
-        ParseError
+        ParseError,
     },
     InsufficientBuffer,
 };

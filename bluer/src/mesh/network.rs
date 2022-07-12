@@ -11,6 +11,7 @@ use dbus::{
 use crate::mesh::{
     all_dbus_objects,
     application::{Application, ApplicationHandle, RegisteredApplication},
+    node::Node,
     ElementConfig, PATH, SERVICE_NAME, TIMEOUT,
 };
 use uuid::Uuid;
@@ -74,6 +75,8 @@ impl Network {
             self.call_method("Attach", (path_value, token_int)).await?;
 
         log::info!("Attached app to {:?} with elements config {:?}", node, config);
+
+        let node = Node::new(node, self.inner.clone());
 
         // TODO configure elements and get node object
         Ok(())

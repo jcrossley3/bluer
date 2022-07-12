@@ -2,10 +2,11 @@
 
 pub mod application;
 pub mod network;
+pub mod node;
 mod types;
 pub use types::*;
 
-use crate::{method_call, Result, SessionInner, Error, ErrorKind, ERR_PREFIX};
+use crate::{method_call, Error, ErrorKind, Result, SessionInner, ERR_PREFIX};
 use dbus::{
     arg::{PropMap, RefArg, Variant},
     nonblock::{stdintf::org_freedesktop_dbus::ObjectManager, Proxy, SyncConnection},
@@ -15,24 +16,14 @@ use dbus_crossroads::{Crossroads, IfaceBuilder, IfaceToken};
 use drogue_device::drivers::ble::mesh::{
     address::{Address, UnicastAddress},
     app::ApplicationKeyIdentifier,
-    pdu::{
-        access::{AccessPayload},
-    },
+    pdu::access::AccessPayload,
 };
-use std::{
-    collections::HashMap,
-    fmt,
-    num::NonZeroU16,
-    pin::Pin,
-    sync::{Arc},
-    task::Poll,
-    time::Duration,
-};
+use futures::Stream;
 use pin_project::pin_project;
+use std::{collections::HashMap, fmt, num::NonZeroU16, pin::Pin, sync::Arc, task::Poll, time::Duration};
+use strum::IntoStaticStr;
 use tokio::sync::{mpsc, watch};
 use tokio_stream::wrappers::ReceiverStream;
-use futures::{Stream};
-use strum::{IntoStaticStr};
 
 pub(crate) const SERVICE_NAME: &str = "org.bluez.mesh";
 pub(crate) const PATH: &str = "/org/bluez/mesh";

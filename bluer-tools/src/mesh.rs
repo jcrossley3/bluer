@@ -99,7 +99,6 @@ impl SensorConfig for SensorModel {
 }
 
 impl SensorData for Temperature {
-
     fn decode(&mut self, id: PropertyId, params: &[u8]) -> Result<(), ParseError> {
         if id.0 == 0x4F {
             self.0 = params[0] as f32 / 2.0;
