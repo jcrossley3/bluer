@@ -64,7 +64,7 @@ impl Network {
     }
 
     /// Attach to mesh network
-    pub async fn attach(&self, path: &str, token: &str) -> Result<()> {
+    pub async fn attach(&self, path: &str, token: &str) -> Result<Node> {
         let token_int = u64::from_str_radix(token, 16)
             .map_err(|_| Error::new(ErrorKind::Internal(InternalErrorKind::InvalidValue)))?;
 
@@ -76,10 +76,10 @@ impl Network {
 
         log::info!("Attached app to {:?} with elements config {:?}", node, config);
 
-        let node = Node::new(node, self.inner.clone());
+        let node = Node::new(node, self.inner.clone()).await?;
 
-        // TODO configure elements and get node object
-        Ok(())
+        // TODO configure elements and pass them node object
+        Ok(node)
     }
 
     /// Cancel provisioning request

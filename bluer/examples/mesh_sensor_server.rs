@@ -5,7 +5,7 @@
 //! [burrboard/gateway]$ sudo /usr/libexec/bluetooth/bluetooth-meshd --config ${PWD}/deploy/bluez/example/meshcfg --storage ${PWD}/deploy/bluez/example/mesh --debug
 //!
 //! Example receive
-//! [bluer/bluer-tools]$ RUST_LOG=TRACE cargo run --bin mesh -- --token 7eb48c91911361da
+//! [bluer/bluer-tools]$ RUST_LOG=TRACE cargo run --example mesh_sensor_server -- --token 7eb48c91911361da
 //!
 //! Example send
 //! [burrboard/gateway]$ TOKEN=dae519a06e504bd3 ./app/temp-device.py
@@ -15,13 +15,15 @@ use clap::Parser;
 use drogue_device::drivers::ble::mesh::{
     composition::CompanyIdentifier,
     model::{
-        sensor::{PropertyId, SensorClient, SensorConfig, SensorData, SensorDescriptor, SensorMessage},
+        sensor::{PropertyId, SensorConfig, SensorData, SensorDescriptor, SensorServer},
         Message, Model,
     },
     pdu::ParseError,
 };
-use futures::{pin_mut, StreamExt};
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    signal,
+};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -38,49 +40,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mesh = session.mesh().await?;
 
-    let (element_control, element_handle) = element_control();
+    let (_element_control, element_handle) = element_control();
+
+    let path = "/mesh_server";
 
     let sim = Application {
-        path: "/example".to_string(),
+        path: path.to_string(),
         elements: vec![Element {
-            models: vec![Box::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new()))],
+            models: vec![Box::new(FromDrogue::new(SensorServer::<SensorModel, 1, 1>::new()))],
             control_handle: Some(element_handle),
         }],
     };
 
     let _registered = mesh.application(sim).await?;
 
-    mesh.attach("/example", &args.token).await?;
+    let node = mesh.attach(path, &args.token).await?;
 
-    println!("Echo service ready. Press enter to quit.");
+    println!("Snesor server ready. Press enter to send a message. Press Ctrl+C to quit");
     let stdin = BufReader::new(tokio::io::stdin());
     let mut lines = stdin.lines();
-    pin_mut!(element_control);
 
     loop {
         tokio::select! {
-            _ = lines.next_line() => break,
-            evt = element_control.next() => {
-                match evt {
-                    Some(msg) => {
-                        match SensorClient::<SensorModel, 1, 1>::parse(msg.payload.opcode, &msg.payload.parameters).map_err(|_| std::fmt::Error)? {
-                            Some(message) => {
-                                match message {
-                                    SensorMessage::Status(status) => {
-                                        println!("Received {:?}", status.data);
-                                    },
-                                    _ => todo!(),
-                                }
-                            },
-                            None => todo!()
-                        }
-                    },
-                    None => break,
-                }
+            _ = lines.next_line() => {
+                println!("Send");
+                node.publish().await?;
             },
+            _ = signal::ctrl_c() => break,
         }
     }
 
+    println!("Shutting down");
     //TODO unregister
 
     Ok(())

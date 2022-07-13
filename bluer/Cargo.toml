@@ -67,6 +67,7 @@ serde = { version = "1", features = ["derive"], optional = true }
 
 # TODO: Temporary until we find a different location for models
 drogue-device = { version = "0.1.0", features = ["ble", "std"] }
+ector = { version = "0.1.0", features = ["std"] }
 heapless = "0.7"
 
 [build-dependencies]
@@ -75,9 +76,10 @@ serde_json = "1"
 uuid = "1"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["io-std", "io-util", "rt-multi-thread"] }
+tokio = { version = "1", features = ["io-std", "io-util", "rt-multi-thread", "signal"] }
 env_logger = "0.9"
 rand = "0.8"
+clap = { version = "3", features = ["derive"] }
 
 [package.metadata.docs.rs]
 all-features = true
