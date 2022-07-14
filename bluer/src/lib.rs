@@ -655,7 +655,7 @@ pub enum InternalErrorKind {
 
 #[cfg(feature = "bluetoothd")]
 impl Error {
-    pub(crate) fn new(kind: ErrorKind) -> Self {
+    pub fn new(kind: ErrorKind) -> Self {
         Self { kind, message: String::new() }
     }
 }

@@ -15,7 +15,7 @@ use clap::Parser;
 use drogue_device::drivers::ble::mesh::{
     composition::CompanyIdentifier,
     model::{
-        sensor::{PropertyId, SensorConfig, SensorData, SensorDescriptor, SensorServer},
+        sensor::{PropertyId, SensorConfig, SensorData, SensorDescriptor, SensorServer, SensorMessage, SensorStatus},
         Message, Model,
     },
     pdu::ParseError,
@@ -24,6 +24,7 @@ use tokio::{
     io::{AsyncBufReadExt, BufReader},
     signal,
 };
+use bluer::{Error, ErrorKind};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -64,7 +65,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             _ = lines.next_line() => {
                 println!("Send");
-                node.publish().await?;
+                let message: SensorMessage<'_, SensorModel, 1, 1> = SensorMessage::Status(SensorStatus::new(Temperature(21.0)));
+                let mut parameters: heapless::Vec<u8, 384> = heapless::Vec::new();
+                message.opcode().emit(&mut parameters).map_err(|_|  Error::new(ErrorKind::Failed))?;
+                message.emit_parameters(&mut parameters).map_err(|_|  Error::new(ErrorKind::Failed))?;
+                println!("Data {:?}", parameters);
+
+                node.publish(parameters).await?;
             },
             _ = signal::ctrl_c() => break,
         }
@@ -101,7 +108,8 @@ impl SensorData for Temperature {
     fn encode<const N: usize>(
         &self, _: PropertyId, xmit: &mut heapless::Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
-        xmit.extend_from_slice(&self.0.to_le_bytes()).map_err(|_| InsufficientBuffer)?;
+        let value = (self.0 * 2 as f32) as u8;
+        xmit.extend_from_slice(&value.to_le_bytes()).map_err(|_| InsufficientBuffer)?;
         Ok(())
     }
 }
