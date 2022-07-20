@@ -24,7 +24,7 @@ use tokio::{
     io::{AsyncBufReadExt, BufReader},
     signal,
 };
-use bluer::{Error, ErrorKind};
+use dbus::Path;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -48,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let sim = Application {
         path: path.to_string(),
         elements: vec![Element {
-            models: vec![Box::new(FromDrogue::new(SensorServer::<SensorModel, 1, 1>::new()))],
+            models: vec![Box::new(FromDrogue::new(Sensor::new()))],
             control_handle: Some(element_handle),
         }],
     };
@@ -57,21 +57,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let node = mesh.attach(path, &args.token).await?;
 
-    println!("Snesor server ready. Press enter to send a message. Press Ctrl+C to quit");
+    println!("Sensor server ready. Press enter to send a message. Press Ctrl+C to quit");
     let stdin = BufReader::new(tokio::io::stdin());
     let mut lines = stdin.lines();
 
     loop {
         tokio::select! {
             _ = lines.next_line() => {
-                println!("Send");
                 let message: SensorMessage<'_, SensorModel, 1, 1> = SensorMessage::Status(SensorStatus::new(Temperature(21.0)));
-                let mut parameters: heapless::Vec<u8, 384> = heapless::Vec::new();
-                message.opcode().emit(&mut parameters).map_err(|_|  Error::new(ErrorKind::Failed))?;
-                message.emit_parameters(&mut parameters).map_err(|_|  Error::new(ErrorKind::Failed))?;
-                println!("Data {:?}", parameters);
 
-                node.publish(parameters).await?;
+                let root = Path::from("/mesh_server");
+                let path_value = Path::from(format!("{}/{}", root, "ele00"));
+                node.publish::<Sensor>(message, path_value).await?;
             },
             _ = signal::ctrl_c() => break,
         }
@@ -113,6 +110,8 @@ impl SensorData for Temperature {
         Ok(())
     }
 }
+
+type Sensor = SensorServer::<SensorModel, 1, 1>;
 
 const COMPANY_IDENTIFIER: CompanyIdentifier = CompanyIdentifier(0x05F1);
 const COMPANY_MODEL: ModelIdentifier = ModelIdentifier::Vendor(COMPANY_IDENTIFIER, 0x0001);

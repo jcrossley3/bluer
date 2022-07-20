@@ -12,8 +12,9 @@ use dbus::{
     Path,
 };
 
-use crate::mesh::{PATH, SERVICE_NAME, TIMEOUT};
-use crate::{Error, ErrorKind, InternalErrorKind};
+use crate::mesh::{SERVICE_NAME, TIMEOUT};
+use crate::{Error, ErrorKind};
+use drogue_device::drivers::ble::mesh::model::{Model, Message, ModelIdentifier};
 
 pub(crate) const INTERFACE: &str = "org.bluez.mesh.Node1";
 
@@ -29,12 +30,21 @@ impl Node {
     }
 
     /// Publish message to the mesh
-    pub async fn publish(&self, data: heapless::Vec<u8, 384>) -> Result<()> {
-        println!("Publishing");
-        let path_value =
-            Path::new("/mesh_server/ele00").map_err(|_| Error::new(ErrorKind::Internal(InternalErrorKind::InvalidValue)))?;
-        let mut options: HashMap<&'static str, Variant<Box<dyn RefArg>>> = HashMap::new();
-        self.call_method("Publish", (path_value, 0x1100 as u16, options, data.to_vec())).await?;
+    pub async fn publish<'m, M: Model>(&self, message: M::Message<'m>, path: Path<'m>) -> Result<()> {
+        let model_id = match M::IDENTIFIER {
+            ModelIdentifier::SIG(id) => id,
+            ModelIdentifier::Vendor(_, id) => id,
+        };
+
+        let mut data: heapless::Vec<u8, 384> = heapless::Vec::new();
+        message.opcode().emit(&mut data).map_err(|_|  Error::new(ErrorKind::Failed))?;
+        message.emit_parameters(&mut data).map_err(|_|  Error::new(ErrorKind::Failed))?;
+
+        let options: HashMap<&'static str, Variant<Box<dyn RefArg>>> = HashMap::new();
+
+        log::trace!("Publishing message: {:?} {:?} {:?} {:?}", path, model_id, options, data.to_vec());
+        self.call_method("Publish", (path, model_id, options, data.to_vec())).await?;
+
         Ok(())
     }
 
