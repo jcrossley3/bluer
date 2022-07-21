@@ -9,7 +9,6 @@ use dbus::{
 };
 
 use crate::mesh::{
-    all_dbus_objects,
     application::{Application, ApplicationHandle, RegisteredApplication},
     node::Node,
     ElementConfig, PATH, SERVICE_NAME, TIMEOUT,
@@ -34,25 +33,10 @@ impl Network {
     }
 
     /// Create mesh application
-    pub async fn application(&self, app: Application) -> Result<ApplicationHandle> {
+    pub async fn application(&self, root_path: Path<'static>, app: Application) -> Result<ApplicationHandle> {
         let reg = RegisteredApplication::new(self.inner.clone(), app);
 
-        reg.register(self.inner.clone()).await
-    }
-
-    /// Temprorary debug method to print the state of mesh
-    pub async fn print_dbus_objects(&self) -> Result<()> {
-        // let proxy = Proxy::new("org.bluez.mesh", "/", TIMEOUT, &*self.inner.connection);
-        // let (x,): (HashMap<dbus::Path<'static>, HashMap<String, PropMap>>,) = proxy.method_call("org.freedesktop.DBus.ObjectManager", "GetManagedObjects", ()).await.unwrap();
-        // println!("om {:?}", x);
-
-        for (path, interfaces) in all_dbus_objects(&*self.inner.connection).await? {
-            println!("{}", path);
-            for (interface, _props) in interfaces {
-                println!("    - interface {}", interface);
-            }
-        }
-        Ok(())
+        reg.register(root_path, self.inner.clone()).await
     }
 
     /// Join mesh network
@@ -64,15 +48,12 @@ impl Network {
     }
 
     /// Attach to mesh network
-    pub async fn attach(&self, path: &str, token: &str) -> Result<Node> {
+    pub async fn attach(&self, path: Path<'_>, token: &str) -> Result<Node> {
         let token_int = u64::from_str_radix(token, 16)
             .map_err(|_| Error::new(ErrorKind::Internal(InternalErrorKind::InvalidValue)))?;
 
-        let path_value =
-            Path::new(path).map_err(|_| Error::new(ErrorKind::Internal(InternalErrorKind::InvalidValue)))?;
-
-        let (node, config): (Path, Vec<(u8, Vec<(u16, ElementConfig)>)>) =
-            self.call_method("Attach", (path_value, token_int)).await?;
+        let (node, config): (Path<'static>, Vec<(u8, Vec<(u16, ElementConfig)>)>) =
+            self.call_method("Attach", (path, token_int)).await?;
 
         log::info!("Attached app to {:?} with elements config {:?}", node, config);
 

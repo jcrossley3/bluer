@@ -12,10 +12,13 @@
 
 use bluer::mesh::{application::Application, *};
 use clap::Parser;
+use dbus::Path;
 use drogue_device::drivers::ble::mesh::{
     composition::CompanyIdentifier,
     model::{
-        sensor::{PropertyId, SensorConfig, SensorData, SensorDescriptor, SensorServer, SensorMessage, SensorStatus},
+        sensor::{
+            PropertyId, SensorConfig, SensorData, SensorDescriptor, SensorMessage, SensorServer, SensorStatus,
+        },
         Message, Model,
     },
     pdu::ParseError,
@@ -24,7 +27,6 @@ use tokio::{
     io::{AsyncBufReadExt, BufReader},
     signal,
 };
-use dbus::Path;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -43,19 +45,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (_element_control, element_handle) = element_control();
 
-    let path = "/mesh_server";
+    let root_path = Path::from("/mesh_server");
+    let app_path = Path::from(format!("{}/{}", root_path.clone(), "application"));
+    let element_path = Path::from(format!("{}/{}", root_path.clone(), "ele00"));
 
     let sim = Application {
-        path: path.to_string(),
+        path: app_path,
         elements: vec![Element {
+            path: element_path.clone(),
             models: vec![Box::new(FromDrogue::new(Sensor::new()))],
             control_handle: Some(element_handle),
         }],
     };
 
-    let _registered = mesh.application(sim).await?;
+    let _registered = mesh.application(root_path.clone(), sim).await?;
 
-    let node = mesh.attach(path, &args.token).await?;
+    let node = mesh.attach(root_path.clone(), &args.token).await?;
 
     println!("Sensor server ready. Press enter to send a message. Press Ctrl+C to quit");
     let stdin = BufReader::new(tokio::io::stdin());
@@ -65,10 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         tokio::select! {
             _ = lines.next_line() => {
                 let message: SensorMessage<'_, SensorModel, 1, 1> = SensorMessage::Status(SensorStatus::new(Temperature(21.0)));
-
-                let root = Path::from("/mesh_server");
-                let path_value = Path::from(format!("{}/{}", root, "ele00"));
-                node.publish::<Sensor>(message, path_value).await?;
+                node.publish::<Sensor>(message, element_path.clone()).await?;
             },
             _ = signal::ctrl_c() => break,
         }
@@ -111,7 +113,7 @@ impl SensorData for Temperature {
     }
 }
 
-type Sensor = SensorServer::<SensorModel, 1, 1>;
+type Sensor = SensorServer<SensorModel, 1, 1>;
 
 const COMPANY_IDENTIFIER: CompanyIdentifier = CompanyIdentifier(0x05F1);
 const COMPANY_MODEL: ModelIdentifier = ModelIdentifier::Vendor(COMPANY_IDENTIFIER, 0x0001);

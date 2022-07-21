@@ -12,6 +12,7 @@
 
 use bluer::mesh::{application::Application, *};
 use clap::Parser;
+use dbus::Path;
 use drogue_device::drivers::ble::mesh::{
     composition::CompanyIdentifier,
     model::{
@@ -40,19 +41,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (element_control, element_handle) = element_control();
 
-    let path = "/mesh_client";
+    let root_path = Path::from("/mesh_client");
+    let app_path = Path::from(format!("{}/{}", root_path.clone(), "application"));
+    let element_path = Path::from(format!("{}/{}", root_path.clone(), "ele00"));
 
     let sim = Application {
-        path: path.to_string(),
+        path: app_path,
         elements: vec![Element {
+            path: element_path,
             models: vec![Box::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new()))],
             control_handle: Some(element_handle),
         }],
     };
 
-    let _registered = mesh.application(sim).await?;
+    let _registered = mesh.application(root_path.clone(), sim).await?;
 
-    mesh.attach(path, &args.token).await?;
+    mesh.attach(root_path.clone(), &args.token).await?;
 
     println!("Sensor client ready. Press Ctrl+C to quit.");
     pin_mut!(element_control);

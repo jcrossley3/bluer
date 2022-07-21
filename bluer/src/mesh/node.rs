@@ -1,10 +1,7 @@
 //! Implements Node bluetooth mesh interface
 
 use crate::{Result, SessionInner};
-use std::sync::Arc;
-use std::{
-    collections::{HashMap}
-};
+use std::{collections::HashMap, sync::Arc};
 
 use dbus::{
     arg::{RefArg, Variant},
@@ -12,9 +9,11 @@ use dbus::{
     Path,
 };
 
-use crate::mesh::{SERVICE_NAME, TIMEOUT};
-use crate::{Error, ErrorKind};
-use drogue_device::drivers::ble::mesh::model::{Model, Message, ModelIdentifier};
+use crate::{
+    mesh::{SERVICE_NAME, TIMEOUT},
+    Error, ErrorKind,
+};
+use drogue_device::drivers::ble::mesh::model::{Message, Model, ModelIdentifier};
 
 pub(crate) const INTERFACE: &str = "org.bluez.mesh.Node1";
 
@@ -37,8 +36,8 @@ impl Node {
         };
 
         let mut data: heapless::Vec<u8, 384> = heapless::Vec::new();
-        message.opcode().emit(&mut data).map_err(|_|  Error::new(ErrorKind::Failed))?;
-        message.emit_parameters(&mut data).map_err(|_|  Error::new(ErrorKind::Failed))?;
+        message.opcode().emit(&mut data).map_err(|_| Error::new(ErrorKind::Failed))?;
+        message.emit_parameters(&mut data).map_err(|_| Error::new(ErrorKind::Failed))?;
 
         let options: HashMap<&'static str, Variant<Box<dyn RefArg>>> = HashMap::new();
 

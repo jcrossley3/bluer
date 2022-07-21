@@ -3,7 +3,10 @@
 use crate::{method_call, Result, SessionInner};
 use std::sync::Arc;
 
-use dbus::nonblock::{Proxy, SyncConnection};
+use dbus::{
+    nonblock::{Proxy, SyncConnection},
+    Path,
+};
 use dbus_crossroads::{Crossroads, IfaceBuilder, IfaceToken};
 
 use crate::mesh::{Element, RegisteredElement, PATH, SERVICE_NAME, TIMEOUT};
@@ -15,7 +18,7 @@ pub(crate) const INTERFACE: &str = "org.bluez.mesh.Application1";
 /// Definition of mesh application.
 pub struct Application {
     /// Application path
-    pub path: String,
+    pub path: Path<'static>,
     /// Application elements
     pub elements: Vec<Element>,
 }
@@ -68,9 +71,9 @@ impl RegisteredApplication {
         })
     }
 
-    pub(crate) async fn register(mut self, inner: Arc<SessionInner>) -> Result<ApplicationHandle> {
-        let root_path = dbus::Path::new(self.app.path.clone()).unwrap();
-
+    pub(crate) async fn register(
+        mut self, root_path: Path<'static>, inner: Arc<SessionInner>,
+    ) -> Result<ApplicationHandle> {
         {
             let mut cr = inner.crossroads.lock().await;
 
@@ -79,21 +82,13 @@ impl RegisteredApplication {
             let om = cr.object_manager();
             cr.insert(root_path.clone(), &[om], ());
 
-            let app_path = format!("{}/{}", &root_path, "application");
-            let app_path = dbus::Path::new(app_path).unwrap();
-
-            cr.insert(app_path, &[inner.application_token], Arc::new(self));
+            cr.insert(self.app.path.clone(), &[inner.application_token], Arc::new(self));
 
             for (element_idx, element) in elements.into_iter().enumerate() {
+                let element_path = element.path.clone();
                 let reg_element = RegisteredElement::new(inner.clone(), element, element_idx as u8);
-
-                let id = format!("{:02}", element_idx);
-
-                let element_path = format!("{}/ele{}", &root_path, id);
-                let element_path = dbus::Path::new(element_path).unwrap();
-                log::trace!("Publishing element at {}", &element_path);
                 //TODO register and remove all paths ... reg_paths.push(element_path.clone());
-                cr.insert(element_path.clone(), &[inner.element_token], Arc::new(reg_element));
+                cr.insert(element_path, &[inner.element_token], Arc::new(reg_element));
             }
         }
 

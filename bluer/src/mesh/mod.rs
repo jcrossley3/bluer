@@ -6,10 +6,10 @@ pub mod node;
 mod types;
 pub use types::*;
 
-use crate::{method_call, Error, ErrorKind, Result, SessionInner, ERR_PREFIX};
+use crate::{method_call, Error, ErrorKind, SessionInner, ERR_PREFIX};
 use dbus::{
-    arg::{PropMap, RefArg, Variant},
-    nonblock::{stdintf::org_freedesktop_dbus::ObjectManager, Proxy, SyncConnection},
+    arg::{RefArg, Variant},
+    nonblock::{Proxy, SyncConnection},
     Path,
 };
 use dbus_crossroads::{Crossroads, IfaceBuilder, IfaceToken};
@@ -31,14 +31,6 @@ pub(crate) const TIMEOUT: Duration = Duration::from_secs(120);
 
 pub(crate) const ELEMENT_INTERFACE: &str = "org.bluez.mesh.Element1";
 
-/// Gets all D-Bus objects from the BlueZ service.
-async fn all_dbus_objects(
-    connection: &SyncConnection,
-) -> Result<HashMap<Path<'static>, HashMap<String, PropMap>>> {
-    let p = Proxy::new(SERVICE_NAME, "/", TIMEOUT, connection);
-    Ok(p.get_managed_objects().await?)
-}
-
 type ElementConfig = HashMap<String, Variant<Box<dyn RefArg + 'static>>>;
 
 /// Interface to a Bluetooth mesh element interface.
@@ -46,6 +38,8 @@ type ElementConfig = HashMap<String, Variant<Box<dyn RefArg + 'static>>>;
 pub struct Element {
     /// Element models
     pub models: Vec<Box<dyn Model>>,
+    /// Element d-bus path
+    pub path: Path<'static>,
     /// Control handle for element once it has been registered.
     pub control_handle: Option<ElementControlHandle>,
 }
