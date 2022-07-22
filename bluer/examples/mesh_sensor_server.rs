@@ -23,10 +23,7 @@ use drogue_device::drivers::ble::mesh::{
     },
     pdu::ParseError,
 };
-use tokio::{
-    io::{AsyncBufReadExt, BufReader},
-    signal,
-};
+use tokio::{signal, sync::mpsc, time, time::Duration};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -53,7 +50,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path: app_path,
         elements: vec![Element {
             path: element_path.clone(),
-            models: vec![Box::new(FromDrogue::new(Sensor::new()))],
+            models: vec![Box::new(FromDrogue::new(BoardSensor::new()))],
             control_handle: Some(element_handle),
         }],
     };
@@ -63,16 +60,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let node = mesh.attach(root_path.clone(), &args.token).await?;
 
     println!("Sensor server ready. Press enter to send a message. Press Ctrl+C to quit");
-    let stdin = BufReader::new(tokio::io::stdin());
-    let mut lines = stdin.lines();
+
+    let (messages_tx, mut messages_rx) = mpsc::channel(10);
+    let lines_messages_tx = messages_tx.clone();
+    tokio::spawn(async move {
+        let mut interval = time::interval(Duration::from_secs(16));
+
+        loop {
+            interval.tick().await;
+            _ = messages_tx.send(generate_message()).await;
+        }
+    });
+
+    std::thread::spawn(move || loop {
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).unwrap();
+        _ = lines_messages_tx.blocking_send(generate_message());
+    });
 
     loop {
         tokio::select! {
-            _ = lines.next_line() => {
-                let message: SensorMessage<'_, SensorModel, 1, 1> = SensorMessage::Status(SensorStatus::new(Temperature(21.0)));
-                node.publish::<Sensor>(message, element_path.clone()).await?;
+            _ = signal::ctrl_c() => {
+                break
             },
-            _ = signal::ctrl_c() => break,
+            Some(message) = messages_rx.recv() => {
+                node.publish::<BoardSensor>(message, element_path.clone()).await?;
+            },
         }
     }
 
@@ -80,6 +93,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //TODO unregister
 
     Ok(())
+}
+
+fn generate_message() -> BoardSensorMessage {
+    SensorMessage::Status(SensorStatus::new(Temperature(21.0)))
 }
 
 #[derive(Clone, Debug)]
@@ -113,7 +130,8 @@ impl SensorData for Temperature {
     }
 }
 
-type Sensor = SensorServer<SensorModel, 1, 1>;
+type BoardSensor = SensorServer<SensorModel, 1, 1>;
+type BoardSensorMessage = SensorMessage<'static, SensorModel, 1, 1>;
 
 const COMPANY_IDENTIFIER: CompanyIdentifier = CompanyIdentifier(0x05F1);
 const COMPANY_MODEL: ModelIdentifier = ModelIdentifier::Vendor(COMPANY_IDENTIFIER, 0x0001);
