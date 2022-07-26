@@ -34,10 +34,10 @@ pub(crate) const ELEMENT_INTERFACE: &str = "org.bluez.mesh.Element1";
 type ElementConfig = HashMap<String, Variant<Box<dyn RefArg + 'static>>>;
 
 /// Interface to a Bluetooth mesh element interface.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Element {
     /// Element models
-    pub models: Vec<Box<dyn Model>>,
+    pub models: Vec<Arc<dyn Model + 'static>>,
     /// Element d-bus path
     pub path: Path<'static>,
     /// Control handle for element once it has been registered.
@@ -183,14 +183,15 @@ impl Stream for ElementControl {
 /// once it has been registered.
 ///
 /// Use [element_control] to obtain controller and associated handle.
+#[derive(Clone)]
 pub struct ElementControlHandle {
-    handle_tx: watch::Sender<Option<NonZeroU16>>,
+    handle_tx: Arc::<watch::Sender<Option<NonZeroU16>>>,
     messages_tx: mpsc::Sender<ElementMessage>,
 }
 
 impl Default for ElementControlHandle {
     fn default() -> Self {
-        Self { handle_tx: watch::channel(None).0, messages_tx: mpsc::channel(1).0 }
+        Self { handle_tx: Arc::new(watch::channel(None).0), messages_tx: mpsc::channel(1).0 }
     }
 }
 
@@ -208,7 +209,7 @@ pub fn element_control() -> (ElementControl, ElementControlHandle) {
     let (messages_tx, messages_rx) = mpsc::channel(1);
     (
         ElementControl { handle_rx, messages_rx: ReceiverStream::new(messages_rx) },
-        ElementControlHandle { handle_tx, messages_tx },
+        ElementControlHandle { handle_tx: Arc::new(handle_tx), messages_tx },
     )
 }
 

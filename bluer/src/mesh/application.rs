@@ -16,6 +16,7 @@ use std::{fmt, mem::take};
 pub(crate) const INTERFACE: &str = "org.bluez.mesh.Application1";
 
 /// Definition of mesh application.
+#[derive(Clone)]
 pub struct Application {
     /// Application path
     pub path: Path<'static>,

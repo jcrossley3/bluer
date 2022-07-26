@@ -24,6 +24,7 @@ use drogue_device::drivers::ble::mesh::{
     pdu::ParseError,
 };
 use tokio::{signal, sync::mpsc, time, time::Duration};
+use std::sync::Arc;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -50,14 +51,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path: app_path,
         elements: vec![Element {
             path: element_path.clone(),
-            models: vec![Box::new(FromDrogue::new(BoardSensor::new()))],
+            models: vec![Arc::new(FromDrogue::new(BoardSensor::new()))],
             control_handle: Some(element_handle),
         }],
     };
 
-    let _registered = mesh.application(root_path.clone(), sim).await?;
+    let _registered = mesh.application(root_path.clone(), sim.clone()).await?;
 
     let node = mesh.attach(root_path.clone(), &args.token).await?;
+
+    println!("{:?}", sim.path);
 
     println!("Sensor server ready. Press enter to send a message. Press Ctrl+C to quit");
 
