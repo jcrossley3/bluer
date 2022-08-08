@@ -129,3 +129,7 @@ required-features = ["bluetoothd"]
 [[example]]
 name = "mesh_sensor_server"
 required-features = ["bluetoothd"]
+
+[[example]]
+name = "mesh_provisioner"
+required-features = ["bluetoothd"]

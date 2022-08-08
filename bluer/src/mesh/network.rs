@@ -9,6 +9,7 @@ use dbus::{
 };
 
 use crate::mesh::{
+    all_dbus_objects,
     application::{Application, ApplicationHandle, RegisteredApplication},
     node::Node,
     ElementConfig, PATH, SERVICE_NAME, TIMEOUT,
@@ -52,12 +53,13 @@ impl Network {
         let token_int = u64::from_str_radix(token, 16)
             .map_err(|_| Error::new(ErrorKind::Internal(InternalErrorKind::InvalidValue)))?;
 
-        let (node, config): (Path<'static>, Vec<(u8, Vec<(u16, ElementConfig)>)>) =
+        let (node_path, config): (Path<'static>, Vec<(u8, Vec<(u16, ElementConfig)>)>) =
             self.call_method("Attach", (path, token_int)).await?;
 
-        log::info!("Attached app to {:?} with elements config {:?}", node, config);
+        log::info!("Attached app to {:?} with elements config {:?}", node_path, config);
 
-        let node = Node::new(node, self.inner.clone()).await?;
+        let node = Node::new(node_path.clone(), self.inner.clone()).await?;
+        //let management = Management::new(node_path.clone(), self.inner.clone()).await?;
 
         // TODO configure elements and pass them node object
         Ok(node)
@@ -74,6 +76,17 @@ impl Network {
             .map_err(|_| Error::new(ErrorKind::Internal(InternalErrorKind::InvalidValue)))?;
 
         self.call_method("Leave", (token_int,)).await
+    }
+
+    /// Temprorary debug method to print the state of mesh
+    pub async fn print_dbus_objects(&self) -> Result<()> {
+        for (path, interfaces) in all_dbus_objects(&*self.inner.connection).await? {
+            println!("{}", path);
+            for (interface, _props) in interfaces {
+                println!("    - interface {}", interface);
+            }
+        }
+        Ok(())
     }
 
     dbus_interface!();

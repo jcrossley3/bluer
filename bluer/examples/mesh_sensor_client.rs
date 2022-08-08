@@ -10,7 +10,7 @@
 //! Example send
 //! [burrboard/gateway]$ TOKEN=dae519a06e504bd3 ./app/temp-device.py
 
-use bluer::mesh::{application::Application, *};
+use bluer::{mesh::{application::Application, *}};
 use clap::Parser;
 use dbus::Path;
 use drogue_device::drivers::ble::mesh::{
@@ -23,6 +23,7 @@ use drogue_device::drivers::ble::mesh::{
 };
 use futures::{pin_mut, StreamExt};
 use tokio::signal;
+use std::sync::Arc;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -49,14 +50,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         path: app_path,
         elements: vec![Element {
             path: element_path,
-            models: vec![Box::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new()))],
+            models: vec![Arc::new(FromDrogue::new(SensorClient::<SensorModel, 1, 1>::new()))],
             control_handle: Some(element_handle),
         }],
+        ..Default::default()
     };
 
     let _registered = mesh.application(root_path.clone(), sim).await?;
 
-    mesh.attach(root_path.clone(), &args.token).await?;
+    let _node = mesh.attach(root_path.clone(), &args.token).await?;
 
     println!("Sensor client ready. Press Ctrl+C to quit.");
     pin_mut!(element_control);

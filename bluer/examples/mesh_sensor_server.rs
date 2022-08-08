@@ -54,6 +54,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             models: vec![Arc::new(FromDrogue::new(BoardSensor::new()))],
             control_handle: Some(element_handle),
         }],
+        ..Default::default()
     };
 
     let _registered = mesh.application(root_path.clone(), sim.clone()).await?;

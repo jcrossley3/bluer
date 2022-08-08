@@ -1,15 +1,18 @@
 //! Bluetooth Mesh module
 
+pub mod agent;
 pub mod application;
 pub mod network;
 pub mod node;
+pub mod provisioner;
+pub mod management;
 mod types;
 pub use types::*;
 
-use crate::{method_call, Error, ErrorKind, SessionInner, ERR_PREFIX};
+use crate::{method_call, Error, ErrorKind, Result, SessionInner, ERR_PREFIX};
 use dbus::{
-    arg::{RefArg, Variant},
-    nonblock::{Proxy, SyncConnection},
+    arg::{PropMap, RefArg, Variant},
+    nonblock::{stdintf::org_freedesktop_dbus::ObjectManager,Proxy, SyncConnection},
     Path,
 };
 use dbus_crossroads::{Crossroads, IfaceBuilder, IfaceToken};
@@ -255,3 +258,11 @@ impl From<ReqError> for dbus::MethodErr {
 
 /// Result of a Bluetooth request to us.
 pub type ReqResult<T> = std::result::Result<T, ReqError>;
+
+    /// Gets all D-Bus objects from the BlueZ service.
+    async fn all_dbus_objects(
+        connection: &SyncConnection,
+    ) -> Result<HashMap<Path<'static>, HashMap<String, PropMap>>> {
+        let p = Proxy::new(SERVICE_NAME, "/", TIMEOUT, connection);
+        Ok(p.get_managed_objects().await?)
+    }

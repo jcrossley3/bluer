@@ -13,30 +13,43 @@ use crate::mesh::{Element, RegisteredElement, PATH, SERVICE_NAME, TIMEOUT};
 use futures::channel::oneshot;
 use std::{fmt, mem::take};
 
+use super::{provisioner::{RegisteredProvisioner, Provisioner}, agent::ProvisionAgent};
+
 pub(crate) const INTERFACE: &str = "org.bluez.mesh.Application1";
 
 /// Definition of mesh application.
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct Application {
     /// Application path
     pub path: Path<'static>,
     /// Application elements
     pub elements: Vec<Element>,
+    /// Provisioner
+    pub provisioner: Option<Provisioner>,
 }
 
 // ---------------
 // D-Bus interface
 // ---------------
 
-/// A service exposed over D-Bus to bluez.
+/// An Application exposed over D-Bus to bluez.
+#[derive(Clone)]
 pub struct RegisteredApplication {
     inner: Arc<SessionInner>,
     app: Application,
+    agent: ProvisionAgent,
+    provisioner: Option<RegisteredProvisioner>,
 }
 
 impl RegisteredApplication {
     pub(crate) fn new(inner: Arc<SessionInner>, app: Application) -> Self {
-        Self { inner, app }
+        let provisioner = match app.clone().provisioner {
+            Some(prov) => Some(RegisteredProvisioner::new(inner.clone(), prov.clone())),
+            None => None,
+        };
+        let agent = ProvisionAgent::new(inner.clone());
+
+        Self { inner, app, provisioner, agent }
     }
 
     fn proxy(&self) -> Proxy<'_, &SyncConnection> {
@@ -83,7 +96,16 @@ impl RegisteredApplication {
             let om = cr.object_manager();
             cr.insert(root_path.clone(), &[om], ());
 
-            cr.insert(self.app.path.clone(), &[inner.application_token], Arc::new(self));
+            cr.insert(Path::from(format!("{}/{}", root_path.clone(), "agent")), &[inner.provision_agent_token], Arc::new(self.clone().agent));
+
+            match self.clone().provisioner {
+                Some(_) => {
+                    cr.insert(self.app.path.clone(), &[inner.provisioner_token, inner.application_token], Arc::new(self.clone()))
+                },
+                None => {
+                    cr.insert(self.app.path.clone(), &[inner.application_token], Arc::new(self.clone()))
+                }
+            }
 
             for (element_idx, element) in elements.into_iter().enumerate() {
                 let element_path = element.path.clone();

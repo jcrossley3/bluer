@@ -35,7 +35,7 @@ use crate::{
     adv::Advertisement,
     agent::{Agent, AgentHandle, RegisteredAgent},
     all_dbus_objects, gatt,
-    mesh::{application::RegisteredApplication, network::Network, RegisteredElement},
+    mesh::{application::RegisteredApplication, network::Network, RegisteredElement, provisioner::RegisteredProvisioner, agent::ProvisionAgent},
     parent_path, Adapter, Error, ErrorKind, InternalErrorKind, Result, SERVICE_NAME,
 };
 
@@ -57,6 +57,8 @@ pub(crate) struct SessionInner {
     pub agent_token: IfaceToken<Arc<RegisteredAgent>>,
     pub application_token: IfaceToken<Arc<RegisteredApplication>>,
     pub element_token: IfaceToken<Arc<RegisteredElement>>,
+    pub provisioner_token: IfaceToken<Arc<RegisteredApplication>>,
+    pub provision_agent_token: IfaceToken<Arc<ProvisionAgent>>,
     #[cfg(feature = "rfcomm")]
     pub profile_token: IfaceToken<Arc<RegisteredProfile>>,
     pub single_sessions: Mutex<HashMap<dbus::Path<'static>, SingleSessionTerm>>,
@@ -177,6 +179,8 @@ impl Session {
         let profile_token = RegisteredProfile::register_interface(&mut crossroads);
         let application_token = RegisteredApplication::register_interface(&mut crossroads);
         let element_token = RegisteredElement::register_interface(&mut crossroads);
+        let provisioner_token = RegisteredProvisioner::register_interface(&mut crossroads);
+        let provision_agent_token = ProvisionAgent::register_interface(&mut crossroads);
 
         let (event_sub_tx, event_sub_rx) = mpsc::channel(1);
         Event::handle_connection(connection.clone(), event_sub_rx).await?;
@@ -192,6 +196,8 @@ impl Session {
             agent_token,
             application_token,
             element_token,
+            provisioner_token,
+            provision_agent_token,
             #[cfg(feature = "rfcomm")]
             profile_token,
             single_sessions: Mutex::new(HashMap::new()),

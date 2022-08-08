@@ -10,7 +10,10 @@ use dbus::{
 };
 
 use crate::{
-    mesh::{SERVICE_NAME, TIMEOUT},
+    mesh::{
+        SERVICE_NAME, TIMEOUT,
+        management::Management,
+    },
     Error, ErrorKind,
 };
 use drogue_device::drivers::ble::mesh::model::{Message, Model, ModelIdentifier};
@@ -21,11 +24,14 @@ pub(crate) const INTERFACE: &str = "org.bluez.mesh.Node1";
 pub struct Node {
     inner: Arc<SessionInner>,
     path: Path<'static>,
+    /// Management interface for the node
+    pub management: Option<Management>,
 }
 
 impl Node {
     pub(crate) async fn new(path: Path<'static>, inner: Arc<SessionInner>) -> Result<Self> {
-        Ok(Self { inner, path })
+        let management = Some(Management::new(path.clone(), inner.clone()).await?);
+        Ok(Self { inner, path, management })
     }
 
     /// Publish message to the mesh
